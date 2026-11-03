@@ -1,15 +1,11 @@
-# Stage 1: извлекаем слои из fat-jar
-FROM eclipse-temurin:17-jre AS builder
-WORKDIR /builder
-ARG JAR_FILE=build/libs/telegram_radio-*.jar
-COPY ${JAR_FILE} application.jar
-RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
+# Stage 1: сборка JAR внутри контейнера
+FROM gradle:8.14.2-jdk17 AS builder
+WORKDIR /app
+COPY . .
+RUN gradle bootJar --no-daemon
 
-# Stage 2: runtime-образ, по одному слою на COPY
+# Stage 2: runtime
 FROM eclipse-temurin:17-jre
 WORKDIR /application
-COPY --from=builder /builder/extracted/dependencies/ ./
-COPY --from=builder /builder/extracted/spring-boot-loader/ ./
-COPY --from=builder /builder/extracted/snapshot-dependencies/ ./
-COPY --from=builder /builder/extracted/application/ ./
+COPY --from=builder /app/build/libs/telegram_radio-*.jar application.jar
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70.0", "-XX:+UseSerialGC", "-Xss256k", "-jar", "application.jar"]
